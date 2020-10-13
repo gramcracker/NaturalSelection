@@ -16,7 +16,7 @@ This is to give an idea of the steps the porgram will take. The actual program w
 * define bot.init
 * define bot.update
     * (bulk of the logic lives here)
-    * may add a separate psudocode file for the bot's update code
+    * may add a separate pseudocode file for the bot's update code
 * define bot.display
     * randomize position
 
