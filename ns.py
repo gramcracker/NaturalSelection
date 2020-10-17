@@ -5,6 +5,7 @@ import math
 #start a pygame session
 pygame.init()
 
+
 #window parameters
 displayWidth = 800
 displayHeight = 600
@@ -22,16 +23,6 @@ redTeam = []
 greenTeam = []
 
 clock = pygame.time.Clock()
-
-#used to fix bad rotation function in pygame
-def rotate(image, angle):
-    """rotate an image while keeping its center and size"""
-    orig_rect = image.get_rect()
-    rot_image = pygame.transform.rotate(image, angle)
-    rot_rect = orig_rect.copy()
-    rot_rect.center = rot_image.get_rect().center
-    rot_image = rot_image.subsurface(rot_rect).copy()
-    return rot_image
 
 
 class wall:
@@ -54,8 +45,8 @@ class bot:
 	color = 'green'
 	sprite = greenTriangle
 	tempSprite = sprite
-	moving = False
-
+	speed = 10
+	#rect = sprite.get_rect(center = (15,15))
 
 	def __init__(self, color):
 		self.color = color
@@ -65,8 +56,15 @@ class bot:
 			self.sprite = redTriangle
 		self.x = random.randint(0, displayWidth)
 		self.y = random.randint(0, displayHeight)
-		self.changeInAngle = random.randint(0, 359)
+		self.angle = random.randint(0, 359)
+		self.angle = 0
 		self.update()
+		
+
+	def rotate(self, change):
+		self.angle += change
+		self.angle = self.angle % 360
+		self.tempSprite = pygame.transform.rotozoom(self.sprite, self.angle, 1)
 
 	def update(self):
 		#get input
@@ -80,21 +78,18 @@ class bot:
 		# add some type of delay based on clock speed
 
 		#temporary random movements
-		self.moving = random.randint(0,1)
-		self.changeInAngle = (self.angle+random.randint(0, 359))*self.moving
-		self.tempSprite = rotate(self.sprite, self.changeInAngle%360)
-		self.angle = (self.angle+self.changeInAngle)%360
-		self.x = (self.x+math.cos(self.angle))*self.moving
-		self.y = (self.y+math.sin(self.angle))*self.moving
+		self.speed = random.randint(1,10)
+		self.rotate( random.randint(-1*self.speed, self.speed))
+		self.x -= math.sin(math.radians(self.angle))*self.speed
+		self.y -= math.cos(math.radians(self.angle))*self.speed
 
-		self.x = self.x%displayWidth-5
+		self.x = self.x%displayWidth
+		self.y = self.y%displayHeight
 
-		self.y = self.y%displayHeight-5
 
-		print(self.x, self.y)
 
 	def display(self):
-		gameDisplay.blit(self.tempSprite, (self.x,self.y))
+		gameDisplay.blit(self.tempSprite, (self.x - self.tempSprite.get_width() / 2 , self.y - self.tempSprite.get_height() / 2))
 
 
 
@@ -109,12 +104,15 @@ while not windowClosed:
 	for event in pygame.event.get():
 		if event.type == pygame.QUIT:
 			windowClosed = True
-
+		#type q to quit
+		if event.type == pygame.KEYDOWN:
+			if event.key == pygame.K_q:
+				windowClosed = True
 	gameDisplay.fill(black)
 
 
 
-
+	pygame.time.wait(100)
 	for i in greenTeam:
 		i.update()
 		i.display()
@@ -124,7 +122,7 @@ while not windowClosed:
 		i.display()
 
 	pygame.display.flip()
-	clock.tick(6)
+	clock.tick(60)
 
 pygame.quit()
 quit() 
