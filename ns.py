@@ -57,7 +57,6 @@ class bot:
 		self.x = random.randint(0, displayWidth)
 		self.y = random.randint(0, displayHeight)
 		self.angle = random.randint(0, 359)
-		self.angle = 0
 		self.update()
 		
 
