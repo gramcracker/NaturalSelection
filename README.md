@@ -16,4 +16,5 @@ There are two teams with an equal amount of either red or green "bots". Each tea
   
   
 ## prerequisites: 
-as of now, pygame must be installed and some neural network framework in the future to utilize DQN.
+As of now, pygame must be installed which is only supported up to python 3.
+A neural network framework will be used the future to utilize DQN.
