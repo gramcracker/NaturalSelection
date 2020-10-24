@@ -19,6 +19,7 @@ timer = timerLength
 gameDisplay = pygame.display.set_mode((displayWidth,displayHeight))
 pygame.display.set_caption('Natural Selection')
 clock = pygame.time.Clock()
+clockSpeed = 30
 font = pygame.font.SysFont('Consolas', 30)
 
 #load the data for the bots
@@ -207,7 +208,7 @@ while not windowClosed:
 	allSprites.draw(gameDisplay)
 	turnHandler()
 	pygame.display.flip()
-	clock.tick(30)
+	clock.tick(clockSpeed)
 
 pygame.quit()
 quit() 
