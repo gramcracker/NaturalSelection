@@ -12,12 +12,16 @@ displayHeight = 600
 windowClosed = False
 black = (0,0,0) #will be background color
 white = (255,255,255) #color of walls
-timer = 15
+backgroundColor = (40, 30, 57)
+wallColor = (66, 65, 87)
+timerLength = 5
+timer = timerLength
 gameDisplay = pygame.display.set_mode((displayWidth,displayHeight))
 pygame.display.set_caption('Natural Selection')
 clock = pygame.time.Clock()
+font = pygame.font.SysFont('Consolas', 30)
 
-#load the images for the bots
+#load the data for the bots
 redTriangle = pygame.image.load('redTriangle.png')
 greenTriangle = pygame.image.load('greenTriangle.png')
 numTeamMembers = 5
@@ -25,8 +29,37 @@ redTeam = pygame.sprite.Group()
 greenTeam = pygame.sprite.Group()
 walls = pygame.sprite.Group()
 allSprites = pygame.sprite.Group()
-greenTeamsTurn = True
+greenTeamsTurn = False
 
+#this function determines who's turn it is and displays it with a timer
+def turnHandler():
+	team = ''
+	global greenTeamsTurn, gameDisplay, timer
+
+	if(len(redTeam) == 0 ):
+		gameDisplay.blit(font.render("Green wins!", True, (255,255,255)), (32, 32))
+	elif(len(redTeam) == 0 ):
+		gameDisplay.blit(font.render("Red wins!", True, (255,255,255)), (32, 32))
+	else:
+		#set the team string based on boolean value
+		if greenTeamsTurn == True:
+			team = 'green'
+		else:
+			team = 'red'
+
+		#when timer hits 0 switch team
+		if timer == 0:
+			
+			if greenTeamsTurn:
+				greenTeamsTurn = False
+			else:
+				greenTeamsTurn = True
+			timer = timerLength
+
+		#create string with the information
+		text = (" {} // Turn: {}".format(timer, team))
+		#display the text
+		gameDisplay.blit(font.render(text, True, (255,255,255)), (32, 32))
 
 
 #define wall class
@@ -40,10 +73,9 @@ class wall(pygame.sprite.Sprite): #inherits sprite class
 		self.length = self.blockSize*random.randint(1,5)
 		self.image = pygame.Surface([self.length, self.blockSize])
 		self.rect = self.image.get_rect()
-		self.image.fill(white)
+		self.image.fill(wallColor)
 		self.rect.x = (random.randint(0, displayWidth) % displayWidth) - self.length
 		self.rect.y = (random.randint(0, displayHeight) %displayHeight) - self.blockSize
-
 
 
 #define bot class
@@ -53,7 +85,6 @@ class bot(pygame.sprite.Sprite): #inherites sprite class
 	speed = 1
 	changeX = 0
 	changeY = 0
-
 
 	def __init__(self, color):
 		#init parent
@@ -98,6 +129,18 @@ class bot(pygame.sprite.Sprite): #inherites sprite class
 			if (self.changeY > 0 and (self.rect.center[1] < w.rect.top)) or (self.changeY < 0 and (self.rect.center[1] > w.rect.bottom)):
 				self.changeY = 0
 
+	#function for keeping sprites on screen
+	def detectEdge(self):
+		#if position + change in posistion is outside screen, then change in position = 0
+			# if((self.rect.x+self.changeX) >= displayWidth-self.rect.width) or  ((self.rect.x+self.changeX) <= 0):
+			# 		self.changeX = 0
+			# if((self.rect.y+self.changeY) >= displayHeight-self.rect.height) or  ((self.rect.y+self.changeY) <= 0):
+			# 	self.changeY = 0
+
+		# comment above and uncomment this to have sprites roll over position on screen instead
+		self.rect.x = self.rect.x%displayWidth
+		self.rect.y = self.rect.y%displayHeight
+
 	#update function (the main logic for a bot)
 	def update(self):
 
@@ -110,20 +153,17 @@ class bot(pygame.sprite.Sprite): #inherites sprite class
 		self.changeY = -math.cos(math.radians(self.angle))*self.speed
 		for i in walls:
 			self.detectWall(i)
-		self.rect.x += self.changeX 
-		self.rect.y += self.changeY
-
-		#if somehow moves outside screen roll over position on screen
-		self.rect.x = self.rect.x%displayWidth
-		self.rect.y = self.rect.y%displayHeight
-
+		#keep sprites in play area
+		self.detectEdge()
 		#detect collisions with enemy
 		self.detectEnemy()
+
+		self.rect.x += self.changeX 
+		self.rect.y += self.changeY
 
 	#define function to add the sprite to the game surface
 		# def display(self):
 		# 	gameDisplay.blit(self.tempSprite, (self.centerX, self.centerY))
-
 
 #Main algorithm of the simulator
 
@@ -145,11 +185,15 @@ for i in range(numWalls):
 	walls.add(w)
 	allSprites.add(w)
 
+#set timer to trigger event once every 1000 milliseconds
+pygame.time.set_timer(pygame.USEREVENT , 1000)
 
 #Main game loop
 while not windowClosed:
 	#get events
 	for event in pygame.event.get():
+		if event.type == pygame.USEREVENT:
+			timer -= 1
 		if event.type == pygame.QUIT:
 			windowClosed = True
 		#type q to quit
@@ -157,12 +201,11 @@ while not windowClosed:
 			if event.key == pygame.K_q:
 				windowClosed = True
 
-	gameDisplay.fill(black)
-
 	#update sprites and draw display
+	gameDisplay.fill(backgroundColor)
 	allSprites.update()
 	allSprites.draw(gameDisplay)
-
+	turnHandler()
 	pygame.display.flip()
 	clock.tick(30)
 
