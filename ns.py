@@ -39,7 +39,7 @@ def turnHandler():
 
 	if(len(redTeam) == 0 ):
 		gameDisplay.blit(font.render("Green wins!", True, (255,255,255)), (32, 32))
-	elif(len(redTeam) == 0 ):
+	elif(len(greenTeam) == 0 ):
 		gameDisplay.blit(font.render("Red wins!", True, (255,255,255)), (32, 32))
 	else:
 		#set the team string based on boolean value
