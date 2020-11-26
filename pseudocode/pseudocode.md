@@ -1,10 +1,11 @@
 This is to give an idea of the steps the porgram will take. The actual program will vary because of class definitions,  and general syntax of python.
 
 # Initialize variables
-* timer
-* load 2 png files for 2 types of bots
-* set number of bots on a team
-* load genome for bot class (just a series of weights from previous runs)
+* start a pygame session
+* window parameters
+* load the data for the bots
+
+# define function determines that who's turn it is and displays it with a timer
 
 # define wall class
 * define wall.init
@@ -14,14 +15,18 @@ This is to give an idea of the steps the porgram will take. The actual program w
 
 # define bot class
 * define bot.init
+* define collision functions
 * define bot.update
-    * (bulk of the logic lives here)
-    * may add a separate pseudocode file for the bot's update code
+    * detect collisions
+    * move
 * define bot.display
     * randomize position
 
 # Main Loop
 * ## create environment
+
+* ## if q press quit
+
     * for each wall 
         * wall.init
     * 2x for each bot:
@@ -37,3 +42,6 @@ This is to give an idea of the steps the porgram will take. The actual program w
 
 * ## display everything
 * ## restart loop
+
+# exit pygame
+# quit

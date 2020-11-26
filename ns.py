@@ -1,6 +1,13 @@
+#import libraries
 import pygame
+#randomized vairiables
 import random
+#math functions
 import math
+#brain class from other file
+from brain import logic
+
+import numpy as np
 
 #start a pygame session
 pygame.init()
@@ -31,36 +38,68 @@ greenTeam = pygame.sprite.Group()
 walls = pygame.sprite.Group()
 allSprites = pygame.sprite.Group()
 greenTeamsTurn = False
+greenLogic = logic()
+greenLogic.logicSequence = np.load('greenlogic.npy')
+redLogic = logic()
+redLogic.logicSequence = np.load('redlogic.npy')
+resetFlag = False
+numberOfSteps = 50
+collisionThreshold = 10
 
 #this function determines who's turn it is and displays it with a timer
 def turnHandler():
 	team = ''
-	global greenTeamsTurn, gameDisplay, timer
+
+	global  resetFlag, redTeam, greenTeam, greenTeamsTurn, gameDisplay, timer, redLogic, greenLogic, numTeamMembers
 
 	if(len(redTeam) == 0 ):
-		gameDisplay.blit(font.render("Green wins!", True, (255,255,255)), (32, 32))
-	elif(len(greenTeam) == 0 ):
-		gameDisplay.blit(font.render("Red wins!", True, (255,255,255)), (32, 32))
-	else:
-		#set the team string based on boolean value
-		if greenTeamsTurn == True:
-			team = 'green'
-		else:
-			team = 'red'
-
-		#when timer hits 0 switch team
-		if timer == 0:
-			
-			if greenTeamsTurn:
-				greenTeamsTurn = False
-			else:
-				greenTeamsTurn = True
+		if timer == 0 and resetFlag == True:
 			timer = timerLength
+			resetFlag = False
+			eraseAllObjects()
+			redLogic = greenLogic
+			initAllObjects()
+		else:
+			gameDisplay.blit(font.render("Green wins!", True, (255,255,255)), (displayWidth/2, displayHeight/2))
+			resetFlag = True
 
-		#create string with the information
-		text = (" {} // Turn: {}".format(timer, team))
-		#display the text
-		gameDisplay.blit(font.render(text, True, (255,255,255)), (32, 32))
+	elif(len(greenTeam) == 0 ):
+		if timer == 0 and resetFlag == True:
+			timer = timerLength
+			resetFlag = False
+			eraseAllObjects()
+			greenLogic = redLogic
+			initAllObjects()
+		else:
+			gameDisplay.blit(font.render("Red wins!", True, (255,255,255)), (displayWidth/2, displayHeight/2))
+			resetFlag = True
+
+
+
+
+	#set the team string based on boolean value
+	if greenTeamsTurn == True:
+		team = 'green'
+	else:
+		team = 'red'
+
+	#when timer hits 0 switch team
+	if timer == 0:
+		allSprites.remove(walls)
+		walls.empty()
+		generateWalls()
+
+		if greenTeamsTurn:
+			greenTeamsTurn = False
+		else:
+			greenTeamsTurn = True
+		timer = timerLength
+
+
+	#create string with the information
+	text = (" {} // Turn: {}".format(timer, team))
+	#display the text
+	gameDisplay.blit(font.render(text, True, (255,255,255)), (32, 32))
 
 
 #define wall class
@@ -84,8 +123,18 @@ class bot(pygame.sprite.Sprite): #inherites sprite class
 
 	angle = 90
 	speed = 1
+	radius = 100
 	changeX = 0
 	changeY = 0
+	sensoryArray = np.zeros(8)
+	#enemy angle
+    #enemy X distance
+	#enemy Y distance
+    #detect wall angle
+    #detect wall X distance
+	#detect wall Y distance
+    #get turn boolean
+	sensoryArray[7] = 1#bias
 
 	def __init__(self, color):
 		#init parent
@@ -99,10 +148,29 @@ class bot(pygame.sprite.Sprite): #inherites sprite class
 		self.rect = self.png.get_rect()
 		self.rect.x = random.randint(0, displayWidth)
 		self.rect.y = random.randint(0, displayHeight)
-		self.radius = .5
+		
 		self.angle = random.randint(0, 359)
 		self.update()
 		
+	stepNumber = 0
+	def getNextStep(self):
+		global numberOfSteps, greenLogic, redLogic, greenTeamsTurn
+
+		if self.stepNumber == numberOfSteps:
+			self.stepNumber = 0
+
+		if self.color == 'green':
+
+			self.sensoryArray[6] = 1 if greenTeamsTurn else 0
+			# print(self.color, self.sensoryArray)
+			return greenLogic.step(self.stepNumber, self.sensoryArray)
+
+		elif self.color == 'red':
+
+			self.sensoryArray[6] = 1 if not greenTeamsTurn else 0
+			# print(self.color, self.sensoryArray)
+			return redLogic.step(self.stepNumber, self.sensoryArray)
+	
 	#define rotate function
 	def rotate(self, change):
 		self.angle += change
@@ -112,23 +180,79 @@ class bot(pygame.sprite.Sprite): #inherites sprite class
 		#self.rect = self.image.get_rect(center = self.center)
 
 	#if its this bots turn then it wont die otherwise it will die when tagged
-	def detectEnemy(self):
-		if self.color == 'green' and greenTeamsTurn == False:
-			if not (pygame.sprite.spritecollideany(self, redTeam, collided = None) == None):
-				self.kill()
-		elif self.color == 'red' and greenTeamsTurn == True:
-			if not (pygame.sprite.spritecollideany(self, greenTeam, collided = None) == None):
-				self.kill()
+	def detectEnemy(self, ):
+
+		if self.color == 'green':
+			enemiesNearby = pygame.sprite.spritecollide(self, redTeam, False, pygame.sprite.collide_circle)
+			numEnemies = len(enemiesNearby)
+			if numEnemies > 0:
+				
+				sumAngle = 	0
+				sumPositionX = 0
+				sumPositionY = 0
+				for i in enemiesNearby:
+					diffPosX = i.rect.centerx-self.rect.centerx
+					diffPosY = i.rect.centery-self.rect.centery
+					if (abs(diffPosY) <= collisionThreshold) and (abs(diffPosX) <= collisionThreshold) and greenTeamsTurn == False:
+						self.kill()
+						greenLogic.mutateRandom()
+					sumAngle += math.radians(math.atan2(diffPosY, diffPosX))
+					sumPositionX += diffPosX
+					sumPositionY += diffPosY
+				self.sensoryArray[0] = sumAngle / numEnemies
+				self.sensoryArray[1] = sumPositionX / numEnemies
+				self.sensoryArray[2] = sumPositionY / numEnemies
+			
+			else: self.sensoryArray[0:2] = 0
+
+											
+		elif self.color == 'red':
+			enemiesNearby = pygame.sprite.spritecollide(self, greenTeam, False, pygame.sprite.collide_circle)
+			numEnemies = len(enemiesNearby)
+			if numEnemies > 0:
+				
+				sumAngle = 	0
+				sumPositionX = 0
+				sumPositionY = 0
+				for i in enemiesNearby:
+					diffPosX = i.rect.centerx-self.rect.centerx
+					diffPosY = i.rect.centery-self.rect.centery
+					if (abs(diffPosY) <= collisionThreshold) and (abs(diffPosX) <= collisionThreshold) and greenTeamsTurn == True:
+						self.kill()
+						redLogic.mutateRandom()
+					sumAngle += math.radians(math.atan2(diffPosY, diffPosX))
+					sumPositionX += diffPosX
+					sumPositionY += diffPosY
+				# averange and set senory array
+				self.sensoryArray[0] = sumAngle / numEnemies
+				self.sensoryArray[1] = sumPositionX / numEnemies
+				self.sensoryArray[2] = sumPositionY / numEnemies
+			else: self.sensoryArray[0:2] = 0
 
 	#if the sprite bumps a wall the change in movement in that direction will be zero
 	def detectWall(self, _wall):
 		wallHitList = pygame.sprite.spritecollide(self, walls, False)
-		for w in wallHitList:
-			if (self.changeX > 0 and (self.rect.center[0] < w.rect.left)) or (self.changeX < 0 and (self.rect.center[0] > w.rect.right)):
-				self.changeX = 0
+		walldetectList = pygame.sprite.spritecollide(self, walls, False, pygame.sprite.collide_circle)
+		if len(walldetectList) > 0:
 
-			if (self.changeY > 0 and (self.rect.center[1] < w.rect.top)) or (self.changeY < 0 and (self.rect.center[1] > w.rect.bottom)):
-				self.changeY = 0
+			diffPosX = walldetectList[0].rect.centerx - self.rect.centerx
+			diffPosY = walldetectList[0].rect.centery - self.rect.centery
+			angle = math.radians(math.atan2(diffPosY, diffPosX))
+
+			# set sensory array
+			self.sensoryArray[3] = diffPosX
+			self.sensoryArray[4] = diffPosY
+			self.sensoryArray[5] = angle
+
+			if len(wallHitList) > 0:
+				for w in wallHitList:
+					if (self.changeX > 0 and (self.rect.center[0] < w.rect.left )) or (self.changeX < 0 and (self.rect.center[0] > w.rect.right)):
+						self.changeX = 0
+
+					if (self.changeY > 0 and (self.rect.center[1] < w.rect.top )) or (self.changeY < 0 and (self.rect.center[1] > w.rect.bottom)):
+						self.changeY = 0
+
+		else: self.sensoryArray[3:5] = 0
 
 	#function for keeping sprites on screen
 	def detectEdge(self):
@@ -142,14 +266,16 @@ class bot(pygame.sprite.Sprite): #inherites sprite class
 		self.rect.x = self.rect.x%displayWidth
 		self.rect.y = self.rect.y%displayHeight
 
+					
+
 	#update function (the main logic for a bot)
 	def update(self):
 
-		#TODO predict next move using DQN probably
+		nextStep = self.getNextStep()
 
-		#temporary random movements
-		self.speed = random.randint(1,10)
-		self.rotate( random.randint(-1*self.speed, self.speed))
+		self.speed = 3 + nextStep[0]  *10
+		# self.rotate( np.tanh(nextStep[1])*self.speed )
+		self.rotate( nextStep[1]*nextStep[2])
 		self.changeX = -math.sin(math.radians(self.angle))*self.speed
 		self.changeY = -math.cos(math.radians(self.angle))*self.speed
 		for i in walls:
@@ -166,25 +292,37 @@ class bot(pygame.sprite.Sprite): #inherites sprite class
 		# def display(self):
 		# 	gameDisplay.blit(self.tempSprite, (self.centerX, self.centerY))
 
+def generateWalls():
+	#set random number of walls 3 <= numWalls <=15
+	numWalls = random.randint(3,15)
+	for i in range(numWalls):
+		#create one of each member
+		w = wall()
+		walls.add(w)
+		allSprites.add(w)
+
 #Main algorithm of the simulator
+def initAllObjects():
+	#initialise objects
+	for i in range(numTeamMembers):
+		#create one of each member
+		g = bot('green')
+		r = bot('red')
+		greenTeam.add(g)
+		redTeam.add(r)
+		allSprites.add(g)
+		allSprites.add(r)
 
-#initialise objects
-for i in range(numTeamMembers):
-	#create one of each member
-	g = bot('green')
-	r = bot('red')
-	greenTeam.add(g)
-	redTeam.add(r)
-	allSprites.add(g)
-	allSprites.add(r)
+	
+	generateWalls()
 
-#set random number of walls 3 <= numWalls <=10
-numWalls = random.randint(3,15)
-for i in range(numWalls):
-	#create one of each member
-	w = wall()
-	walls.add(w)
-	allSprites.add(w)
+def eraseAllObjects():
+	allSprites.empty()
+	redTeam.empty()
+	greenTeam.empty()
+	walls.empty()
+
+initAllObjects()
 
 #set timer to trigger event once every 1000 milliseconds
 pygame.time.set_timer(pygame.USEREVENT , 1000)
@@ -198,9 +336,18 @@ while not windowClosed:
 		if event.type == pygame.QUIT:
 			windowClosed = True
 		#type q to quit
+		# type m to mutate
 		if event.type == pygame.KEYDOWN:
 			if event.key == pygame.K_q:
 				windowClosed = True
+			if event.key == pygame.K_m:
+				greenLogic.mutateRandom()
+				redLogic.mutateRandom()
+			if event.key == pygame.K_r:
+				timer = timerLength
+				eraseAllObjects()
+				initAllObjects()
+
 
 	#update sprites and draw display
 	gameDisplay.fill(backgroundColor)
@@ -210,8 +357,7 @@ while not windowClosed:
 	pygame.display.flip()
 	clock.tick(clockSpeed)
 
+np.save('redlogic', redLogic.logicSequence)
+np.save('greenlogic', greenLogic.logicSequence)
 pygame.quit()
 quit() 
-
-# how a recurrent neural network works
-# https://www.youtube.com/watch?v=UNmqTiOnRfg
