@@ -2,7 +2,7 @@ import random
 import numpy as np
 
 class logic():
-
+ 
     #this class defines a recurrent neural network that for 
     numIn = 8 #number of inputs
 	#enemy angle
@@ -20,9 +20,11 @@ class logic():
 
     steps = 50
 
-    mutationRate = .3
+    stepNumber = 0
 
-    confidence = 100
+    mutationRate = .7
+
+    confidence = 2
     
 
 
@@ -33,17 +35,30 @@ class logic():
 
 
 
-    def step(self, stepNumber, inputs):
+    def step(self, inputs):
+
+        if self.stepNumber == self.steps:
+            self.stepNumber = 0
+
         output = [1,0,1]
         
-        output[0] = 1/(1+np.exp(np.dot(inputs, self.logicSequence[stepNumber][0]/self.numIn)))
-        output[1] = np.tanh(np.dot(inputs, self.logicSequence[stepNumber][1])/self.numIn)
-        output[2] = abs(np.dot(inputs, self.logicSequence[stepNumber][2]/self.numIn))
+        output[0] = 1/(1+np.exp(np.dot(inputs, self.logicSequence[self.stepNumber][0]/self.numIn)))
+        output[1] = np.tanh(np.dot(inputs, self.logicSequence[self.stepNumber][1])/self.numIn)
+        output[2] = abs(np.dot(inputs, self.logicSequence[self.stepNumber][2]/self.numIn))
         #  (self.logicSequence)
         #  (inputs)
         #  (output)
+        self.stepNumber += 1
         return output 
 
     def mutateRandom(self):
-        
-        self.logicSequence =  (self.logicSequence * self.confidence + ( np.random.random_sample((self.steps, self.numOut, self.numIn)))) / (self.confidence + 1)
+        self.logicSequence =  (self.logicSequence * self.confidence + (self.mutationRate * np.random.random_sample((self.steps, self.numOut, self.numIn)))) / (self.confidence + 1) 
+
+    def avgLogic(self, group):
+        scoreSum = 0
+
+        for i in group:
+            scoreSum += i.score
+        for i in group:
+            self.logicSequence += ((i.logic.logicSequence * i.score) / scoreSum)
+            
