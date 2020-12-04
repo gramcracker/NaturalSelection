@@ -51,6 +51,7 @@ def turnHandler():
 	# the global keyword means these outside variables can now be used by this function
 	global  resetFlag, redTeam, greenTeam, greenTeamsTurn, gameDisplay, timer, redLogic, greenLogic, numTeamMembers
 
+	# if length of other team is 0 then we win and reset game
 	if(len(redTeam) == 0 ):
 		if timer == 0 and resetFlag == True:
 
