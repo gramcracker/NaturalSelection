@@ -18,42 +18,39 @@ class logic():
 
     numOut = 3 # change in angle, and speed, and turn speed    
 
-    steps = 50
+    steps = 50 
 
     stepNumber = 0
 
-    mutationRate = .7
+    mutationRate = .1 # the mutation increments
 
-    confidence = 2
+    confidence = 100 # the current weights get multiplied by this before averaging with mutated weights
     
 
 
     def __init__(self):
-        self.logicSequence = np.random.random_sample((self.steps, self.hiddenLayer, self.numIn))
-        # self.hiddenweights = np.random.random_sample((self.steps, self.hiddenLayer, self.numIn))
-        # self.outWights = np.random.random_sample((self.steps, self.numOut, self.hiddenLayer ))
+        self.logicSequence = np.random.random_sample((self.steps, self.hiddenLayer, self.numIn)) 
 
-
-
+    # returns the next steo that a bot will take based on the logic sequence
     def step(self, inputs):
 
         if self.stepNumber == self.steps:
             self.stepNumber = 0
 
         output = [1,0,1]
-        
-        output[0] = 1/(1+np.exp(np.dot(inputs, self.logicSequence[self.stepNumber][0]/self.numIn)))
-        output[1] = np.tanh(np.dot(inputs, self.logicSequence[self.stepNumber][1])/self.numIn)
-        output[2] = abs(np.dot(inputs, self.logicSequence[self.stepNumber][2]/self.numIn))
-        #  (self.logicSequence)
-        #  (inputs)
-        #  (output)
+        output[0] = 2**(1+np.dot(inputs, self.logicSequence[self.stepNumber][0])*100/self.numIn)
+        output[1] = np.tanh(np.dot(inputs, self.logicSequence[self.stepNumber][1])*100/self.numIn)
+        output[2] = 2**(1/(1+np.exp(np.dot(inputs, self.logicSequence[self.stepNumber][2])*100/self.numIn)))
+
         self.stepNumber += 1
+
         return output 
 
+    # generates a mutated versimon of the logic sequence
     def mutateRandom(self):
-        self.logicSequence =  (self.logicSequence * self.confidence + (self.mutationRate * np.random.random_sample((self.steps, self.numOut, self.numIn)))) / (self.confidence + 1) 
+        self.logicSequence =  (self.logicSequence * self.confidence + ( np.random.random_sample((self.steps, self.numOut, self.numIn))-.5)) / (self.confidence + 1) 
 
+    # this is used to get the average logic of all the winning bots
     def avgLogic(self, group):
         scoreSum = 0
 

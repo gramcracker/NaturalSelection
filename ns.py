@@ -14,35 +14,33 @@ pygame.init()
 
 
 #window parameters
-displayWidth = 800
-displayHeight = 800
+displayWidth = 500
+displayHeight = 500
 windowClosed = False
-black = (0,0,0) #will be background color
-white = (255,255,255) #color of walls
 backgroundColor = (40, 30, 57)
-wallColor = (66, 65, 87)
-timerLength = 5
-timer = timerLength
+wallColor = (66, 65, 87) 
+timerLength = 5 #number of seconds on the timer
+timer = timerLength # set the timer
 gameDisplay = pygame.display.set_mode((displayWidth,displayHeight))
 pygame.display.set_caption('Natural Selection')
-clock = pygame.time.Clock()
-clockSpeed = 30
+clock = pygame.time.Clock() #init the clock
+clockSpeed = 30 # ticks on the clock determines game speed
 font = pygame.font.SysFont('Consolas', 30)
 
 #load the data for the bots
-redTriangle = pygame.image.load('redTriangle.png')
-greenTriangle = pygame.image.load('greenTriangle.png')
-numTeamMembers = 6
-redTeam = pygame.sprite.Group()
-greenTeam = pygame.sprite.Group()
-walls = pygame.sprite.Group()
-allSprites = pygame.sprite.Group()
-greenTeamsTurn = False
-Logic = logic()
-Logic.logicSequence = np.load('logic.npy')
-resetFlag = False
-numberOfSteps = 50
-collisionThreshold = 10
+redTriangle = pygame.image.load('redTriangle.png')#load the picture for sprite
+greenTriangle = pygame.image.load('greenTriangle.png')#load the picture for sprite
+numTeamMembers = 5 #number of bots to create
+redTeam = pygame.sprite.Group() #create pygame sprite group for red
+greenTeam = pygame.sprite.Group() # create pygame sprite group for green
+walls = pygame.sprite.Group() #create pygame sprite group for walls
+allSprites = pygame.sprite.Group() #create pygame sprite group for all
+greenTeamsTurn = False #boolean that will be set to determine whos turn
+Logic = logic() #init the brain
+Logic.logicSequence = np.load('logic.npy') #load logic sequence from file that was saved on close
+resetFlag = False # just a flag used to tell when to reset the game after a round
+numberOfSteps = 50 # number of steps in the logic sequence
+collisionThreshold = 20 # how close sprites can get to eachother. used for the enemy detection function
 
 
 
@@ -50,6 +48,7 @@ collisionThreshold = 10
 def turnHandler():
 	team = ''
 
+	# the global keyword means these outside variables can now be used by this function
 	global  resetFlag, redTeam, greenTeam, greenTeamsTurn, gameDisplay, timer, redLogic, greenLogic, numTeamMembers
 
 	if(len(redTeam) == 0 ):
@@ -125,11 +124,12 @@ class bot(pygame.sprite.Sprite): #inherites sprite class
 	global Logic
 	angle = 90
 	speed = 1
-	radius = 100
-	score = 1
+	radius = 200
+	score = 0
 	changeX = 0
 	changeY = 0
 	sensoryArray = np.zeros(8)
+	smoothingFactor = [1,1]
 	logic = Logic
 	#enemy angle
     #enemy X distance
@@ -157,15 +157,15 @@ class bot(pygame.sprite.Sprite): #inherites sprite class
 		self.logic.mutateRandom()
 		self.update()
 		
-	
+	# calls the step function from the brain class based 
 	def getNextStep(self):
 
 		global greenTeamsTurn
 
 		if self.color == 'green':
-			self.sensoryArray[6] = 1 if greenTeamsTurn else 0
+			self.sensoryArray[6] = 1 if greenTeamsTurn else -1
 		elif self.color == 'red':
-			self.sensoryArray[6] = 1 if not greenTeamsTurn else 0
+			self.sensoryArray[6] = 1 if not greenTeamsTurn else -1
 
 		return self.logic.step(self.sensoryArray) 
 
@@ -181,23 +181,33 @@ class bot(pygame.sprite.Sprite): #inherites sprite class
 	def detectEnemy(self, ):
 		
 		if self.color == 'green':
+			
 			enemiesNearby = pygame.sprite.spritecollide(self, redTeam, False, pygame.sprite.collide_circle)
 			numEnemies = len(enemiesNearby)
 			if numEnemies > 0:
-				diffPosX = abs(enemiesNearby[0].rect.centerx-self.rect.centerx)
-				diffPosY = abs(enemiesNearby[0].rect.centery-self.rect.centery)	
+				sumdx = 0
+				sumdy = 0	
 				for i in enemiesNearby:
-					if (abs(diffPosY) <= collisionThreshold) and (abs(diffPosX) <= collisionThreshold):
+					dx = abs(i.rect.centerx-self.rect.centerx)
+					sumdx +=  i.rect.centerx-self.rect.centerx
+					dy = abs(i.rect.centery-self.rect.centery)
+					sumdy +=  i.rect.centery-self.rect.centery
+					if (abs(dy) <= collisionThreshold) and (abs(dx) <= collisionThreshold):
 						if greenTeamsTurn == False:
 							self.kill()
-							for i in greenTeam:
-								i.logic.mutateRandom()
+							for j in greenTeam:
+								j.logic = i.logic
+								j.logic.mutateRandom
 						else:
 							self.score += 1
-				self.sensoryArray[0] = 2*math.atan2(diffPosY, diffPosX)/math.pi
-				self.sensoryArray[1] = (self.radius - diffPosX) - self.radius
-				self.sensoryArray[2] = (self.radius - diffPosY) - self.radius
+				diffPosX = sumdx/len(enemiesNearby)
+				diffPosY = sumdy/len(enemiesNearby)
+				self.sensoryArray[0] = math.atan2(diffPosY, diffPosX)/math.pi
+				self.sensoryArray[1] = 0 if diffPosX == 0 else math.tanh(diffPosX)/abs(diffPosX)
+				self.sensoryArray[2] = 0 if diffPosY == 0 else math.tanh(diffPosY)/abs(diffPosY)
 			else: self.sensoryArray[0:3] = 0
+			
+			
 
 
 											
@@ -205,36 +215,52 @@ class bot(pygame.sprite.Sprite): #inherites sprite class
 			enemiesNearby = pygame.sprite.spritecollide(self, greenTeam, False, pygame.sprite.collide_circle)
 			numEnemies = len(enemiesNearby)
 			if numEnemies > 0:
-				diffPosX = abs(enemiesNearby[0].rect.centerx-self.rect.centerx)
-				diffPosY = abs(enemiesNearby[0].rect.centery-self.rect.centery)	
+				sumdx = 0
+				sumdy = 0
 				for i in enemiesNearby:
-					if (abs(diffPosY) <= collisionThreshold) and (abs(diffPosX) <= collisionThreshold):
+					dx = abs(i.rect.centerx-self.rect.centerx)
+					sumdx +=  i.rect.centerx-self.rect.centerx
+					dy = abs(i.rect.centery-self.rect.centery)
+					sumdy +=  i.rect.centery-self.rect.centery	
+
+					if (abs(dy) <= collisionThreshold) and (abs(dx) <= collisionThreshold):
 						if greenTeamsTurn == True:
 							self.kill()
-							for i in redTeam:
-								i.logic.mutateRandom()
+							for j in redTeam:
+								j.logic = i.logic
+								j.logic.mutateRandom
 						else:
 							self.score += 1
-				self.sensoryArray[0] = 2*math.atan2(diffPosY, diffPosX)/math.pi
-				self.sensoryArray[1] = (self.radius - diffPosX) - self.radius
-				self.sensoryArray[2] = (self.radius - diffPosY) - self.radius
+				diffPosX = sumdx/len(enemiesNearby)
+				diffPosY = sumdy/len(enemiesNearby)
+				
+				self.sensoryArray[0] = math.atan2(diffPosY, diffPosX)/math.pi
+				self.sensoryArray[1] = 0 if diffPosX == 0 else math.tanh(diffPosX)/abs(diffPosX)
+				self.sensoryArray[2] = 0 if diffPosY == 0 else math.tanh(diffPosY)/abs(diffPosY)
+				# print(self.sensoryArray[0:3])
 			else: self.sensoryArray[0:3] = 0
 
 	#if the sprite bumps a wall the change in movement in that direction will be zero
 	def detectWall(self, _wall):
 		wallHitList = pygame.sprite.spritecollide(self, walls, False)
 		walldetectList = pygame.sprite.spritecollide(self, walls, False, pygame.sprite.collide_circle)
+		
+		sumdx = 0
+		sumdy = 0
+		sumAngle = 0
 		if len(walldetectList) > 0:
-
-			diffPosX = walldetectList[0].rect.centerx - self.rect.centerx
-			diffPosY = walldetectList[0].rect.centery - self.rect.centery
-			angle = math.radians(math.atan2(diffPosY, diffPosX))
+			for i in walldetectList:
+				sumdx +=  i.rect.centerx-self.rect.centerx
+				sumdy +=  i.rect.centery-self.rect.centery
+			
+			diffPosX = sumdx/len(walldetectList)
+			diffPosY = sumdy/len(walldetectList)
 
 			# set sensory array
-			self.sensoryArray[3] = diffPosX
-			self.sensoryArray[4] = diffPosY
-			self.sensoryArray[5] = angle
-
+			self.sensoryArray[3] = 0 if diffPosX == 0 else math.tanh(diffPosX)/abs(diffPosX)
+			self.sensoryArray[4] = 0 if diffPosY == 0 else math.tanh(diffPosY)/abs(diffPosY)
+			self.sensoryArray[5] = math.atan2(diffPosY, diffPosX)/math.pi
+			
 			if len(wallHitList) > 0:
 				for w in wallHitList:
 					if (self.changeX > 0 and (self.rect.center[0] < w.rect.left )) or (self.changeX < 0 and (self.rect.center[0] > w.rect.right)):
@@ -242,16 +268,16 @@ class bot(pygame.sprite.Sprite): #inherites sprite class
 
 					if (self.changeY > 0 and (self.rect.center[1] < w.rect.top )) or (self.changeY < 0 and (self.rect.center[1] > w.rect.bottom)):
 						self.changeY = 0
-
+			
 		else: self.sensoryArray[3:6] = 0
 
 	#function for keeping sprites on screen
 	def detectEdge(self):
-		#if position + change in posistion is outside screen, then change in position = 0
-			# if((self.rect.x+self.changeX) >= displayWidth-self.rect.width) or  ((self.rect.x+self.changeX) <= 0):
-			# 		self.changeX = 0
-			# if((self.rect.y+self.changeY) >= displayHeight-self.rect.height) or  ((self.rect.y+self.changeY) <= 0):
-			# 	self.changeY = 0
+		# if position + change in posistion is outside screen, then change in position = 0
+		# if((self.rect.x+self.changeX) >= displayWidth-self.rect.width) or  ((self.rect.x+self.changeX) <= 0):
+		# 		self.changeX = 0
+		# if((self.rect.y+self.changeY) >= displayHeight-self.rect.height) or  ((self.rect.y+self.changeY) <= 0):
+		# 	self.changeY = 0
 
 		# comment above and uncomment this to have sprites roll over position on screen instead
 		self.rect.x = self.rect.x%displayWidth
@@ -261,12 +287,11 @@ class bot(pygame.sprite.Sprite): #inherites sprite class
 
 	#update function (the main logic for a bot)
 	def update(self):
-
 		nextStep = self.getNextStep()
-
-		self.speed = 3 + nextStep[0]  *10
-		# self.rotate( np.tanh(nextStep[1])*self.speed )
-		self.rotate( nextStep[1]*nextStep[2])
+		self.speed = 2*(nextStep[0]*nextStep[2])
+		self.rotate(self.speed*3*nextStep[1])
+		self.smoothingFactor = nextStep
+		# self.rotate( nextStep[1] * nextStep[2] * self.score/2)
 		self.changeX = -math.sin(math.radians(self.angle))*self.speed
 		self.changeY = -math.cos(math.radians(self.angle))*self.speed
 		for i in walls:
