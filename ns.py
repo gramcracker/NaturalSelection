@@ -14,8 +14,8 @@ pygame.init()
 
 
 #window parameters
-displayWidth = 500
-displayHeight = 500
+displayWidth = 800
+displayHeight = 800
 windowClosed = False
 backgroundColor = (40, 30, 57)
 wallColor = (66, 65, 87) 
@@ -24,22 +24,24 @@ timer = timerLength # set the timer
 gameDisplay = pygame.display.set_mode((displayWidth,displayHeight))
 pygame.display.set_caption('Natural Selection')
 clock = pygame.time.Clock() #init the clock
-clockSpeed = 30 # ticks on the clock determines game speed
+clockSpeed = 120 # ticks on the clock determines game speed
 font = pygame.font.SysFont('Consolas', 30)
 
 #load the data for the bots
 redTriangle = pygame.image.load('redTriangle.png')#load the picture for sprite
 greenTriangle = pygame.image.load('greenTriangle.png')#load the picture for sprite
-numTeamMembers = 5 #number of bots to create
+numTeamMembers = 3 #number of bots to create
 redTeam = pygame.sprite.Group() #create pygame sprite group for red
 greenTeam = pygame.sprite.Group() # create pygame sprite group for green
 walls = pygame.sprite.Group() #create pygame sprite group for walls
 allSprites = pygame.sprite.Group() #create pygame sprite group for all
 greenTeamsTurn = False #boolean that will be set to determine whos turn
 Logic = logic() #init the brain
-Logic.logicSequence = np.load('logic.npy') #load logic sequence from file that was saved on close
+Logic.logicSequence = np.load('logicS.npy') #load logic sequence from file that was saved on close
+Logic.hiddenWeights = np.load('logicH.npy')
+Logic.outputWeights = np.load('logicO.npy')
 resetFlag = False # just a flag used to tell when to reset the game after a round
-numberOfSteps = 50 # number of steps in the logic sequence
+# numberOfSteps = 1 # number of steps in the logic sequence
 collisionThreshold = 20 # how close sprites can get to eachother. used for the enemy detection function
 
 
@@ -75,9 +77,6 @@ def turnHandler():
 			gameDisplay.blit(font.render("Red wins!", True, (255,255,255)), (displayWidth/2, displayHeight/2))
 			resetFlag = True
 
-
-
-
 	#set the team string based on boolean value
 	if greenTeamsTurn == True:
 		team = 'green'
@@ -89,6 +88,7 @@ def turnHandler():
 		allSprites.remove(walls)
 		walls.empty()
 		generateWalls()
+
 
 		if greenTeamsTurn:
 			greenTeamsTurn = False
@@ -197,7 +197,6 @@ class bot(pygame.sprite.Sprite): #inherites sprite class
 						if greenTeamsTurn == False:
 							self.kill()
 							for j in greenTeam:
-								j.logic = i.logic
 								j.logic.mutateRandom
 						else:
 							self.score += 1
@@ -228,7 +227,6 @@ class bot(pygame.sprite.Sprite): #inherites sprite class
 						if greenTeamsTurn == True:
 							self.kill()
 							for j in redTeam:
-								j.logic = i.logic
 								j.logic.mutateRandom
 						else:
 							self.score += 1
@@ -241,6 +239,24 @@ class bot(pygame.sprite.Sprite): #inherites sprite class
 				# print(self.sensoryArray[0:3])
 			else: self.sensoryArray[0:3] = 0
 
+	def wall_distance(self, wall):
+		x = 0
+		y = 0
+
+		x1, y1 = wall.rect.topleft
+		x2, y2 = wall.rect.bottomright
+		xc, yc = self.rect.center
+
+		if xc > x2: x = xc - x2
+		elif xc < x1: x = xc - x1
+		else: x = xc
+
+		if yc > y2: y = yc - y2
+		elif yc < y1: x = yc - y1
+		else: y = yc
+
+		return x,y
+
 	#if the sprite bumps a wall the change in movement in that direction will be zero
 	def detectWall(self, _wall):
 		wallHitList = pygame.sprite.spritecollide(self, walls, False)
@@ -251,8 +267,9 @@ class bot(pygame.sprite.Sprite): #inherites sprite class
 		sumAngle = 0
 		if len(walldetectList) > 0:
 			for i in walldetectList:
-				sumdx +=  i.rect.centerx-self.rect.centerx
-				sumdy +=  i.rect.centery-self.rect.centery
+				x, y = self.wall_distance(i)
+				sumdx +=  x
+				sumdy +=  y
 			
 			diffPosX = sumdx/len(walldetectList)
 			diffPosY = sumdy/len(walldetectList)
@@ -290,7 +307,7 @@ class bot(pygame.sprite.Sprite): #inherites sprite class
 	def update(self):
 		nextStep = self.getNextStep()
 		self.speed = 2*(nextStep[0]*nextStep[2])
-		self.rotate(self.speed*3*nextStep[1])
+		self.rotate(self.speed*5*nextStep[1])
 		self.smoothingFactor = nextStep
 		# self.rotate( nextStep[1] * nextStep[2] * self.score/2)
 		self.changeX = -math.sin(math.radians(self.angle))*self.speed
@@ -373,6 +390,8 @@ while not windowClosed:
 	pygame.display.flip()
 	clock.tick(clockSpeed)
 
-np.save('logic', Logic.logicSequence)
+np.save('logicS', Logic.logicSequence)
+np.save('logicH', Logic.hiddenWeights)
+np.save('logicO', Logic.outputWeights)
 pygame.quit()
 quit() 
