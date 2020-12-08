@@ -30,7 +30,7 @@ font = pygame.font.SysFont('Consolas', 30)
 #load the data for the bots
 redTriangle = pygame.image.load('redTriangle.png')#load the picture for sprite
 greenTriangle = pygame.image.load('greenTriangle.png')#load the picture for sprite
-numTeamMembers = 3 #number of bots to create
+numTeamMembers = 12
 redTeam = pygame.sprite.Group() #create pygame sprite group for red
 greenTeam = pygame.sprite.Group() # create pygame sprite group for green
 walls = pygame.sprite.Group() #create pygame sprite group for walls
@@ -43,9 +43,6 @@ Logic.outputWeights = np.load('logicO.npy')
 resetFlag = False # just a flag used to tell when to reset the game after a round
 # numberOfSteps = 1 # number of steps in the logic sequence
 collisionThreshold = 20 # how close sprites can get to eachother. used for the enemy detection function
-
-
-
 #this function determines who's turn it is and displays it with a timer
 def turnHandler():
 	team = ''
